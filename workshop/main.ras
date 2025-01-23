@@ -1,0 +1,60 @@
+program C64Project;
+var
+
+@define spriteLoc $3200 //adress där sprite ska ligga
+@define spriteNumber 0 
+
+
+@export "sprites/snake.flf" "sprites/snake.bin" 256 //skapar en binär fil från din sprite
+	
+snake:incbin("sprites/snake.bin", @spriteLoc); //inkluderar binära filen och placerar den vid adress "spritelocation"
+sprite_x: integer=100; 
+sprite_y: byte = 100;
+
+i,movement_dir,map_player_direction: byte=0;
+procedure InitSprites();
+	begin
+		setspriteloc(@spriteNumber,@spriteLoc/64,0);
+		spritepos(sprite_x,sprite_y,@spriteNumber);
+		
+		sprite_bitmask:= %00000001; //ändra detta binära tal så att endast sprite nummer 1 sätts på
+		sprite_multicolor:= $FF; // Alla sprites är multicolor
+		
+		sprite_multicolor_reg1:=$09; //ändra denna så att färgen stämmer överens med din sprite 
+		sprite_multicolor_reg2:=$01;
+		
+		sprite_color[@spriteNumber]:=$05; 
+	end;
+	
+procedure InitScreen();
+	begin
+		//testa ändra bakgrundsfärgen och ändra key_space till en annan tangent
+		screen_fg_col:=black;
+		screen_bg_col:=purple;
+		ClearScreen(key_space, screen_char_loc); // Fill screen (at $0400) with blank spaces ($20)
+	end;
+	
+	
+procedure UpdateSprite();
+begin
+	joystick(2); //enable jotsyick 2
+
+	// Calculate map_direction
+	map_player_direction:=0;
+	if (joystickleft=1) then map_player_direction:=map_player_direction-1;
+	if (joystickright=1) then map_player_direction:=map_player_direction+1;
+	if (joystickdown=1) then map_player_direction:=map_player_direction+screen_width;
+	if (joystickup=1) then map_player_direction:=map_player_direction-screen_width;
+
+	sprite_x:=sprite_x+joystickright-joystickleft;
+	sprite_y:=sprite_y+joystickdown-joystickup;
+
+	spritepos(sprite_x,sprite_y,@spriteNumber);
+	 
+end;
+begin
+	InitScreen();
+	InitSprites();
+	UpdateSprite();
+	Loop(); 
+end.
