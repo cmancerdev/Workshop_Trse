@@ -3,7 +3,8 @@ var
 
 @define spriteLoc $3200 //adress där sprite ska ligga
 @define spriteNumber 0 
-
+@define usekernal 0
+@define MovementCounterMax 2
 
 @export "sprites/snake.flf" "sprites/snake.bin" 256 //skapar en binär fil från din sprite
 	
@@ -11,7 +12,12 @@ snake:incbin("sprites/snake.bin", @spriteLoc); //inkluderar binära filen och pl
 sprite_x: integer=100; 
 sprite_y: byte = 100;
 
-i,movement_dir,map_player_direction: byte=0;
+i,sprite_offset,movement_dir,map_player_direction,right_offset,left_offset: byte=0;
+MovementCounter,playerMovement: byte=1;
+
+leftsprites: array[2] of byte =(0,1);
+rightsprites: array[2] of byte =(2,3);
+
 procedure InitSprites();
 	begin
 		setspriteloc(@spriteNumber,@spriteLoc/64,0);
@@ -23,7 +29,7 @@ procedure InitSprites();
 		sprite_multicolor_reg1:=$09; //ändra denna så att färgen stämmer överens med din sprite 
 		sprite_multicolor_reg2:=$01;
 		
-		sprite_color[@spriteNumber]:=$05; 
+		sprite_color[@spriteNumber]:=$04; 
 	end;
 	
 procedure InitScreen();
@@ -46,15 +52,58 @@ begin
 	if (joystickdown=1) then map_player_direction:=map_player_direction+screen_width;
 	if (joystickup=1) then map_player_direction:=map_player_direction-screen_width;
 
+
+	if (MovementCounter=0) then
+        begin
+            MovementCounter:= @MovementCounterMax;
+            playerMovement:= mod(playerMovement+1,2);
+        end            
+        else
+        begin
+            dec(MovementCounter);
+        end; 
+
+    if (joystickleft=1) then 
+		begin
+			left_offset:= leftsprites[playerMovement];
+			right_offset:=0;
+		end;
+	    if (joystickright=1) then 
+		begin
+			right_offset:= rightsprites[playerMovement];
+			left_offset:=0;
+		end;
+
+
+
+	
 	sprite_x:=sprite_x+joystickright-joystickleft;
 	sprite_y:=sprite_y+joystickdown-joystickup;
 
 	spritepos(sprite_x,sprite_y,@spriteNumber);
+	setspriteloc(@spriteNumber,@spriteLoc/64+right_offset+left_offset,0);
+
 	 
 end;
+
+interrupt RasterRenderLevels();
+begin
+	StartIRQ(@usekernal);
+	UpdateSprite();	
+	CloseIRQ();
+end;
+
+
 begin
 	InitScreen();
 	InitSprites();
-	UpdateSprite();
+	DisableCIAInterrupts();
+	// Turn off kernal
+	SetMemoryConfig(1,@usekernal,0);
+	// Set up raster IRQ
+	RasterIRQ(RasterRenderLevels(),$00,@usekernal);
+	EnableRasterIRQ();
+	enableirq();
+	Loop(); 
 	Loop(); 
 end.
