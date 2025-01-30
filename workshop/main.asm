@@ -18,7 +18,6 @@ C64Project
 	jmp block1
 sprite_x	dc.w	$64
 sprite_y	dc.b	$64
-map_player_direction	dc.b	$00
 right_offset	dc.b	$00
 left_offset	dc.b	$00
 MovementCounter	dc.b	$01
@@ -133,6 +132,70 @@ callJoystick_end
 	rts
 end_procedure_initjoystick
 	; NodeProcedureDecl -1
+	; ***********  Defining procedure : initmoveto
+	;    Procedure type : Built-in function
+	;    Requires initialization : no
+	jmp initmoveto_moveto2
+screenmemory =  $fe
+colormemory =  $fb
+screen_x = $4C
+screen_y = $4E
+SetScreenPosition
+	sta screenmemory+1
+	lda #0
+	sta screenmemory
+	ldy screen_y
+	beq sydone
+syloop
+	clc
+	adc #40
+	bcc sskip
+	inc screenmemory+1
+sskip
+	dey
+	bne syloop
+sydone
+	ldx screen_x
+	beq sxdone
+	clc
+	adc screen_x
+	bcc sxdone
+	inc screenmemory+1
+sxdone
+	sta screenmemory
+	rts
+initmoveto_moveto2
+	rts
+end_procedure_initmoveto
+	; NodeProcedureDecl -1
+	; ***********  Defining procedure : initprintstring
+	;    Procedure type : Built-in function
+	;    Requires initialization : no
+print_text = $4C
+print_number_text: .dc "    ",0
+printstring
+	ldy #0
+printstringloop
+	lda (print_text),y
+	cmp #0 ;keep
+	beq printstring_done
+	cmp #64
+	bcc printstring_skip
+	sec
+	sbc #64
+printstring_skip
+	sta (screenmemory),y
+	iny
+	dex
+	cpx #0
+	beq printstring_done
+	jmp printstringloop
+printstring_done
+	rts
+end_procedure_initprintstring
+	
+; //ordning av sprite byten 
+	; NodeProcedureDecl -1
 	; ***********  Defining procedure : InitSprites
 	;    Procedure type : User-defined procedure
 InitSprites
@@ -147,16 +210,16 @@ InitSprites
 	ldx #0
 	sta $D000,x
 	cpy #0
-	beq InitSprites_spritepos3
+	beq InitSprites_spritepos4
 	lda $D010
 	ora #%1
 	sta $D010
-	jmp InitSprites_spriteposcontinue4
-InitSprites_spritepos3
+	jmp InitSprites_spriteposcontinue5
+InitSprites_spritepos4
 	lda $D010
 	and #%11111110
 	sta $D010
-InitSprites_spriteposcontinue4
+InitSprites_spriteposcontinue5
 	inx
 	txa
 	tay
@@ -166,8 +229,6 @@ InitSprites_spriteposcontinue4
 	lda #$1
 	; Calling storevariable on generic assign expression
 	sta $d015
-	
-; //ändra detta binära tal så att endast sprite nummer 1 sätts på
 	; Assigning memory location
 	lda #$ff
 	; Calling storevariable on generic assign expression
@@ -206,17 +267,53 @@ InitScreen
 	; Clear screen with offset
 	lda #$20
 	ldx #$fa
-InitScreen_clearloop6
+InitScreen_clearloop7
 	dex
 	sta $0000+$400,x
 	sta $00fa+$400,x
 	sta $01f4+$400,x
 	sta $02ee+$400,x
-	bne InitScreen_clearloop6
+	bne InitScreen_clearloop7
 	rts
 end_procedure_InitScreen
 	
 ; // Fill screen (at $0400) with blank spaces ($20)
+	; NodeProcedureDecl -1
+	; ***********  Defining procedure : Counter
+	;    Procedure type : User-defined procedure
+Counter
+	; Binary clause Simplified: EQUALS
+	clc
+	lda MovementCounter
+	; cmp #$00 ignored
+	bne Counter_eblock11
+Counter_ctb10: ;Main true block ;keep 
+	lda #$2
+	; Calling storevariable on generic assign expression
+	sta MovementCounter
+	; Modulo
+Counter_val_var18 = $54
+	sta Counter_val_var18
+	; 8 bit binop
+	; Add/sub where right value is constant number
+	lda playerMovement
+	clc
+	adc #$1
+	 ; end add / sub var with constant
+	sec
+Counter_modulo19
+	sbc Counter_val_var18
+	bcs Counter_modulo19
+	adc Counter_val_var18
+	; Calling storevariable on generic assign expression
+	sta playerMovement
+	jmp Counter_edblock12
+Counter_eblock11
+	; Test Inc dec D
+	dec MovementCounter
+Counter_edblock12
+	rts
+end_procedure_Counter
 	; NodeProcedureDecl -1
 	; ***********  Defining procedure : UpdateSprite
 	;    Procedure type : User-defined procedure
@@ -229,91 +326,14 @@ UpdateSprite
 	sta $50
 	jsr callJoystick
 	
-; //enable jotsyick 2
-; // Calculate map_direction
-	lda #$0
-	; Calling storevariable on generic assign expression
-	sta map_player_direction
+; //enable joystick 2
+	jsr Counter
 	; Binary clause Simplified: EQUALS
 	lda joystickleft
 	; Compare with pure num / var optimization
 	cmp #$1;keep
-	bne UpdateSprite_edblock11
-UpdateSprite_ctb9: ;Main true block ;keep 
-	; Test Inc dec D
-	dec map_player_direction
-UpdateSprite_edblock11
-	; Binary clause Simplified: EQUALS
-	lda joystickright
-	; Compare with pure num / var optimization
-	cmp #$1;keep
-	bne UpdateSprite_edblock17
-UpdateSprite_ctb15: ;Main true block ;keep 
-	; Test Inc dec D
-	inc map_player_direction
-UpdateSprite_edblock17
-	; Binary clause Simplified: EQUALS
-	lda joystickdown
-	; Compare with pure num / var optimization
-	cmp #$1;keep
-	bne UpdateSprite_edblock23
-UpdateSprite_ctb21: ;Main true block ;keep 
-	; Optimizer: a = a +/- b
-	; Load16bitvariable : map_player_direction
-	lda map_player_direction
-	clc
-	adc #$28
-	sta map_player_direction
-UpdateSprite_edblock23
-	; Binary clause Simplified: EQUALS
-	lda joystickup
-	; Compare with pure num / var optimization
-	cmp #$1;keep
-	bne UpdateSprite_edblock29
-UpdateSprite_ctb27: ;Main true block ;keep 
-	; Optimizer: a = a +/- b
-	; Load16bitvariable : map_player_direction
-	lda map_player_direction
-	sec
-	sbc #$28
-	sta map_player_direction
-UpdateSprite_edblock29
-	; Binary clause Simplified: EQUALS
-	clc
-	lda MovementCounter
-	; cmp #$00 ignored
-	bne UpdateSprite_eblock34
-UpdateSprite_ctb33: ;Main true block ;keep 
-	lda #$2
-	; Calling storevariable on generic assign expression
-	sta MovementCounter
-	; Modulo
-UpdateSprite_val_var41 = $54
-	sta UpdateSprite_val_var41
-	; 8 bit binop
-	; Add/sub where right value is constant number
-	lda playerMovement
-	clc
-	adc #$1
-	 ; end add / sub var with constant
-	sec
-UpdateSprite_modulo42
-	sbc UpdateSprite_val_var41
-	bcs UpdateSprite_modulo42
-	adc UpdateSprite_val_var41
-	; Calling storevariable on generic assign expression
-	sta playerMovement
-	jmp UpdateSprite_edblock35
-UpdateSprite_eblock34
-	; Test Inc dec D
-	dec MovementCounter
-UpdateSprite_edblock35
-	; Binary clause Simplified: EQUALS
-	lda joystickleft
-	; Compare with pure num / var optimization
-	cmp #$1;keep
-	bne UpdateSprite_edblock47
-UpdateSprite_ctb45: ;Main true block ;keep 
+	bne UpdateSprite_edblock25
+UpdateSprite_ctb23: ;Main true block ;keep 
 	; Load Byte array
 	; CAST type NADA
 	ldx playerMovement
@@ -323,13 +343,13 @@ UpdateSprite_ctb45: ;Main true block ;keep
 	lda #$0
 	; Calling storevariable on generic assign expression
 	sta right_offset
-UpdateSprite_edblock47
+UpdateSprite_edblock25
 	; Binary clause Simplified: EQUALS
 	lda joystickright
 	; Compare with pure num / var optimization
 	cmp #$1;keep
-	bne UpdateSprite_edblock53
-UpdateSprite_ctb51: ;Main true block ;keep 
+	bne UpdateSprite_edblock31
+UpdateSprite_ctb29: ;Main true block ;keep 
 	; Load Byte array
 	; CAST type NADA
 	ldx playerMovement
@@ -339,13 +359,13 @@ UpdateSprite_ctb51: ;Main true block ;keep
 	lda #$0
 	; Calling storevariable on generic assign expression
 	sta left_offset
-UpdateSprite_edblock53
+UpdateSprite_edblock31
 	; Generic 16 bit op
 	ldy #0
 	lda joystickleft
-UpdateSprite_rightvarInteger_var58 = $54
-	sta UpdateSprite_rightvarInteger_var58
-	sty UpdateSprite_rightvarInteger_var58+1
+UpdateSprite_rightvarInteger_var36 = $54
+	sta UpdateSprite_rightvarInteger_var36
+	sty UpdateSprite_rightvarInteger_var36+1
 	; HandleVarBinopB16bit
 	; RHS is pure, optimization
 	ldy sprite_x+1 ;keep
@@ -354,19 +374,19 @@ UpdateSprite_rightvarInteger_var58 = $54
 	adc joystickright
 	; Testing for byte:  #0
 	; RHS is byte, optimization
-	bcc UpdateSprite_skip60
+	bcc UpdateSprite_skip38
 	iny
-UpdateSprite_skip60
+UpdateSprite_skip38
 	; Low bit binop:
 	sec
-	sbc UpdateSprite_rightvarInteger_var58
-UpdateSprite_wordAdd56
-	sta UpdateSprite_rightvarInteger_var58
+	sbc UpdateSprite_rightvarInteger_var36
+UpdateSprite_wordAdd34
+	sta UpdateSprite_rightvarInteger_var36
 	; High-bit binop
 	tya
-	sbc UpdateSprite_rightvarInteger_var58+1
+	sbc UpdateSprite_rightvarInteger_var36+1
 	tay
-	lda UpdateSprite_rightvarInteger_var58
+	lda UpdateSprite_rightvarInteger_var36
 	; Calling storevariable on generic assign expression
 	sta sprite_x
 	sty sprite_x+1
@@ -390,16 +410,16 @@ UpdateSprite_wordAdd56
 	ldx #0
 	sta $D000,x
 	cpy #0
-	beq UpdateSprite_spritepos61
+	beq UpdateSprite_spritepos39
 	lda $D010
 	ora #%1
 	sta $D010
-	jmp UpdateSprite_spriteposcontinue62
-UpdateSprite_spritepos61
+	jmp UpdateSprite_spriteposcontinue40
+UpdateSprite_spritepos39
 	lda $D010
 	and #%11111110
 	sta $D010
-UpdateSprite_spriteposcontinue62
+UpdateSprite_spriteposcontinue40
 	inx
 	txa
 	tay
@@ -411,37 +431,37 @@ UpdateSprite_spriteposcontinue62
 	; Generic 16 bit op
 	ldy #0
 	lda left_offset
-UpdateSprite_rightvarInteger_var65 = $54
-	sta UpdateSprite_rightvarInteger_var65
-	sty UpdateSprite_rightvarInteger_var65+1
+UpdateSprite_rightvarInteger_var43 = $54
+	sta UpdateSprite_rightvarInteger_var43
+	sty UpdateSprite_rightvarInteger_var43+1
 	; Generic 16 bit op
 	ldy #0
 	lda right_offset
-UpdateSprite_rightvarInteger_var68 = $56
-	sta UpdateSprite_rightvarInteger_var68
-	sty UpdateSprite_rightvarInteger_var68+1
+UpdateSprite_rightvarInteger_var46 = $56
+	sta UpdateSprite_rightvarInteger_var46
+	sty UpdateSprite_rightvarInteger_var46+1
 	lda #200
 	ldy #0
 	; Low bit binop:
 	clc
-	adc UpdateSprite_rightvarInteger_var68
-UpdateSprite_wordAdd66
-	sta UpdateSprite_rightvarInteger_var68
+	adc UpdateSprite_rightvarInteger_var46
+UpdateSprite_wordAdd44
+	sta UpdateSprite_rightvarInteger_var46
 	; High-bit binop
 	tya
-	adc UpdateSprite_rightvarInteger_var68+1
+	adc UpdateSprite_rightvarInteger_var46+1
 	tay
-	lda UpdateSprite_rightvarInteger_var68
+	lda UpdateSprite_rightvarInteger_var46
 	; Low bit binop:
 	clc
-	adc UpdateSprite_rightvarInteger_var65
-UpdateSprite_wordAdd63
-	sta UpdateSprite_rightvarInteger_var65
+	adc UpdateSprite_rightvarInteger_var43
+UpdateSprite_wordAdd41
+	sta UpdateSprite_rightvarInteger_var43
 	; High-bit binop
 	tya
-	adc UpdateSprite_rightvarInteger_var65+1
+	adc UpdateSprite_rightvarInteger_var43+1
 	tay
-	lda UpdateSprite_rightvarInteger_var65
+	lda UpdateSprite_rightvarInteger_var43
 	ldx $50
 	sta $07f8 + $0,x
 	rts
@@ -457,6 +477,22 @@ RasterRenderLevels
 	tya
 	pha
 	asl $d019
+	; MoveTo optimization
+	lda #$a4
+	sta screenmemory
+	lda #>$400
+	clc
+	adc #$01
+	sta screenmemory+1
+RasterRenderLevels_printstring_call48
+	clc
+	lda #<RasterRenderLevels_printstring_text49
+	adc #$0
+	ldy #>RasterRenderLevels_printstring_text49
+	sta print_text+0
+	sty print_text+1
+	ldx #$c ; optimized, look out for bugs
+	jsr printstring
 	jsr UpdateSprite
 	; CloseIRQ
 	pla
@@ -468,6 +504,8 @@ RasterRenderLevels
 end_procedure_RasterRenderLevels
 block1
 main_block_begin_
+	
+; //main loop
 	jsr InitScreen
 	jsr InitSprites
 	; Disable interrupts
@@ -502,6 +540,8 @@ main_block_begin_
 main_block_end_
 	; End of program
 	; Ending memory block at $810
+RasterRenderLevels_printstring_text49	dc.b	"V.NOT-BROKEN"
+	dc.b	0
 EndBlock810:
 	org $3200
 StartBlock3200:

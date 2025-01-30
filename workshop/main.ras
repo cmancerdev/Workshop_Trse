@@ -6,15 +6,18 @@ var
 @define usekernal 0
 @define MovementCounterMax 2
 
-@export "sprites/snake.flf" "sprites/snake.bin" 256 //skapar en binär fil från din sprite
-	
+@export "sprites/snake.flf" "sprites/snake.bin" 256 //skapar en binär fil från din sprite	
 snake:incbin("sprites/snake.bin", @spriteLoc); //inkluderar binära filen och placerar den vid adress "spritelocation"
+
+
 sprite_x: integer=100; 
 sprite_y: byte = 100;
 
 i,sprite_offset,movement_dir,map_player_direction,right_offset,left_offset: byte=0;
 MovementCounter,playerMovement: byte=1;
 
+
+//ordning av sprite byten 
 leftsprites: array[2] of byte =(0,1);
 rightsprites: array[2] of byte =(2,3);
 
@@ -23,10 +26,10 @@ procedure InitSprites();
 		setspriteloc(@spriteNumber,@spriteLoc/64,0);
 		spritepos(sprite_x,sprite_y,@spriteNumber);
 		
-		sprite_bitmask:= %00000001; //ändra detta binära tal så att endast sprite nummer 1 sätts på
+		sprite_bitmask:= %00000001;
 		sprite_multicolor:= $FF; // Alla sprites är multicolor
 		
-		sprite_multicolor_reg1:=$09; //ändra denna så att färgen stämmer överens med din sprite 
+		sprite_multicolor_reg1:=$09;
 		sprite_multicolor_reg2:=$01;
 		
 		sprite_color[@spriteNumber]:=$04; 
@@ -40,19 +43,8 @@ procedure InitScreen();
 		ClearScreen(key_space, screen_char_loc); // Fill screen (at $0400) with blank spaces ($20)
 	end;
 	
-	
-procedure UpdateSprite();
+procedure Counter(); 
 begin
-	joystick(2); //enable jotsyick 2
-
-	// Calculate map_direction
-	map_player_direction:=0;
-	if (joystickleft=1) then map_player_direction:=map_player_direction-1;
-	if (joystickright=1) then map_player_direction:=map_player_direction+1;
-	if (joystickdown=1) then map_player_direction:=map_player_direction+screen_width;
-	if (joystickup=1) then map_player_direction:=map_player_direction-screen_width;
-
-
 	if (MovementCounter=0) then
         begin
             MovementCounter:= @MovementCounterMax;
@@ -62,21 +54,25 @@ begin
         begin
             dec(MovementCounter);
         end; 
+end;
 
+procedure UpdateSprite();
+begin
+	joystick(2); //enable joystick 2
+	Counter();
+	
     if (joystickleft=1) then 
 		begin
 			left_offset:= leftsprites[playerMovement];
 			right_offset:=0;
 		end;
-	    if (joystickright=1) then 
+	if (joystickright=1) then 
 		begin
 			right_offset:= rightsprites[playerMovement];
 			left_offset:=0;
 		end;
 
 
-
-	
 	sprite_x:=sprite_x+joystickright-joystickleft;
 	sprite_y:=sprite_y+joystickdown-joystickup;
 
@@ -89,11 +85,15 @@ end;
 interrupt RasterRenderLevels();
 begin
 	StartIRQ(@usekernal);
+	moveto(20,10,hi(screen_char_loc));
+	printstring("V.NOT-BROKEN",0,12);
 	UpdateSprite();	
 	CloseIRQ();
 end;
 
 
+
+//main loop
 begin
 	InitScreen();
 	InitSprites();
@@ -104,6 +104,5 @@ begin
 	RasterIRQ(RasterRenderLevels(),$00,@usekernal);
 	EnableRasterIRQ();
 	enableirq();
-	Loop(); 
 	Loop(); 
 end.
