@@ -199,6 +199,8 @@ end_procedure_initprintstring
 	; ***********  Defining procedure : InitSprites
 	;    Procedure type : User-defined procedure
 InitSprites
+	
+; //sätt adress, och position på skärmen
 	; Set sprite location
 	ldx #$0 ; optimized, look out for bugs
 	lda #$c8
@@ -229,23 +231,22 @@ InitSprites_spriteposcontinue5
 	lda #$1
 	; Calling storevariable on generic assign expression
 	sta $d015
+	
+; //vilka sprites är aktiverade
 	; Assigning memory location
 	lda #$ff
 	; Calling storevariable on generic assign expression
 	sta $d01c
 	
 ; // Alla sprites är multicolor
+; //!!Viruset har ätit upp spelarens färger (tips leta i sprite editorn)
 	; Assigning memory location
-	lda #$9
+	lda #$0
 	; Calling storevariable on generic assign expression
 	sta $d025
-	
-; //ändra denna så att färgen stämmer överens med din sprite 
 	; Assigning memory location
-	lda #$1
 	; Calling storevariable on generic assign expression
 	sta $d026
-	lda #$4
 	; Calling storevariable on generic assign expression
 	sta $D027+$0
 	rts
@@ -254,8 +255,6 @@ end_procedure_InitSprites
 	; ***********  Defining procedure : InitScreen
 	;    Procedure type : User-defined procedure
 InitScreen
-	
-; //testa ändra bakgrundsfärgen och ändra key_space till en annan tangent
 	; Assigning memory location
 	lda #$0
 	; Calling storevariable on generic assign expression
@@ -264,8 +263,10 @@ InitScreen
 	lda #$4
 	; Calling storevariable on generic assign expression
 	sta $d020
+	
+; //Viruset har ändrat denna rad och fyllt skärmen med karaktären "A", vi vill ha en helt blank skärm!
 	; Clear screen with offset
-	lda #$20
+	lda #1
 	ldx #$fa
 InitScreen_clearloop7
 	dex
@@ -276,8 +277,6 @@ InitScreen_clearloop7
 	bne InitScreen_clearloop7
 	rts
 end_procedure_InitScreen
-	
-; // Fill screen (at $0400) with blank spaces ($20)
 	; NodeProcedureDecl -1
 	; ***********  Defining procedure : Counter
 	;    Procedure type : User-defined procedure
@@ -328,12 +327,14 @@ UpdateSprite
 	
 ; //enable joystick 2
 	jsr Counter
-	; Binary clause Simplified: EQUALS
-	lda joystickleft
-	; Compare with pure num / var optimization
-	cmp #$1;keep
-	bne UpdateSprite_edblock25
+	; Binary clause Simplified: NOTEQUALS
+	clc
+	lda joystickright
+	; cmp #$00 ignored
+	beq UpdateSprite_edblock25
 UpdateSprite_ctb23: ;Main true block ;keep 
+	
+; // Viruset ställer till problem här också! Nu visas andra riktininges sprites!  
 	; Load Byte array
 	; CAST type NADA
 	ldx playerMovement
@@ -344,11 +345,11 @@ UpdateSprite_ctb23: ;Main true block ;keep
 	; Calling storevariable on generic assign expression
 	sta right_offset
 UpdateSprite_edblock25
-	; Binary clause Simplified: EQUALS
-	lda joystickright
-	; Compare with pure num / var optimization
-	cmp #$1;keep
-	bne UpdateSprite_edblock31
+	; Binary clause Simplified: NOTEQUALS
+	clc
+	lda joystickleft
+	; cmp #$00 ignored
+	beq UpdateSprite_edblock31
 UpdateSprite_ctb29: ;Main true block ;keep 
 	; Load Byte array
 	; CAST type NADA
@@ -360,6 +361,8 @@ UpdateSprite_ctb29: ;Main true block ;keep
 	; Calling storevariable on generic assign expression
 	sta left_offset
 UpdateSprite_edblock31
+	
+; //
 	; Generic 16 bit op
 	ldy #0
 	lda joystickleft
@@ -403,6 +406,8 @@ UpdateSprite_wordAdd34
 	 ; end add / sub var with constant
 	; Calling storevariable on generic assign expression
 	sta sprite_y
+	
+; //updatera position och adress position
 	; Setting sprite position
 	; isi-pisi: value is constant
 	ldy sprite_x+1 ;keep
@@ -491,7 +496,7 @@ RasterRenderLevels_printstring_call48
 	ldy #>RasterRenderLevels_printstring_text49
 	sta print_text+0
 	sty print_text+1
-	ldx #$c ; optimized, look out for bugs
+	ldx #$8 ; optimized, look out for bugs
 	jsr printstring
 	jsr UpdateSprite
 	; CloseIRQ
@@ -540,7 +545,7 @@ main_block_begin_
 main_block_end_
 	; End of program
 	; Ending memory block at $810
-RasterRenderLevels_printstring_text49	dc.b	"V.NOT-BROKEN"
+RasterRenderLevels_printstring_text49	dc.b	"V.BROKEN"
 	dc.b	0
 EndBlock810:
 	org $3200
